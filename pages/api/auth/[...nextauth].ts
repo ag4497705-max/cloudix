@@ -1,9 +1,9 @@
-import NextAuth from "next-auth";
+  import NextAuth from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "../../../lib/prisma";
 
-export default NextAuth({
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     EmailProvider({
@@ -22,11 +22,17 @@ export default NextAuth({
   callbacks: {
     async session({ session, user }) {
       // attach DB user fields to session
-      session.user.id = user.id;
-      session.user.isPro = !!user.isPro;
-      session.user.isLifetime = !!user.isLifetime;
-      session.user.credits = user.credits ?? 0;
+      // `user` here is the Adapter user type
+      if (session.user) {
+        session.user.id = user.id;
+        session.user.email = user.email;
+        // attach custom fields if present
+        // Note: NextAuth's default `user` has only id/email/name/image; if you want extended fields,
+        // fetch from DB instead in other endpoints where needed
+      }
       return session;
     },
   },
-});
+};
+
+export default NextAuth(authOptions as any);
