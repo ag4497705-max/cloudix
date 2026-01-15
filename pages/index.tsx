@@ -1,78 +1,114 @@
-import { useSession, signIn, signOut } from "next-auth/react";
 import { useState } from "react";
+import { useSession, signIn } from "next-auth/react";
 
 export default function Home() {
   const { data: session } = useSession();
+  const [prompt, setPrompt] = useState("");
+  const [packName, setPackName] = useState("my-datapack");
+  const [previewFiles, setPreviewFiles] = useState<{ path: string; content: string }[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function goCheckout(price: "monthly" | "yearly") {
-    setLoading(true);
-    const res = await fetch("/api/create-checkout-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price }),
-    });
-    const { url, error } = await res.json();
-    setLoading(false);
-    if (error) return alert(error);
-    window.location.href = url;
-  }
-
-  async function generate() {
+  async function doPreview() {
     if (!session) return signIn();
     setLoading(true);
-    const res = await fetch("/api/generate", { method: "POST" });
-    const json = await res.json();
-    setLoading(false);
-    alert(JSON.stringify(json));
+    setPreviewFiles(null);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, packName, preview: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Preview failed");
+      setPreviewFiles(json.files ?? []);
+    } catch (err: any) {
+      alert("Preview error: " + String(err.message ?? err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function doDownload() {
+    if (!session) return signIn();
+    setLoading(true);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, packName, preview: false }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Generation failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${packName || "datapack"}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Download error: " + String(err.message ?? err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <main style={{ maxWidth: 800, margin: 24 }}>
-      <h1>Minecraft AI — Pro Subscriptions</h1>
+    <main style={{ maxWidth: 900, margin: 24, fontFamily: "system-ui" }}>
+      <h1>Minecraft Datapack Generator</h1>
 
-      <div>
-        {session ? (
-          <>
-            <p>Signed in as {session.user.email}</p>
-            <button onClick={() => signOut()}>Sign out</button>
-          </>
-        ) : (
-          <button onClick={() => signIn()}>Sign in (email)</button>
+      <div style={{ marginTop: 12 }}>
+        <label>
+          Pack folder name:
+          <input
+            value={packName}
+            onChange={(e) => setPackName(e.target.value)}
+            style={{ marginLeft: 8, padding: 6 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe the datapack behavior you'd like (e.g., 'A minigame that gives players a scoreboard and a command to start rounds')."
+          rows={8}
+          style={{ width: "100%", padding: 8 }}
+        />
+      </div>
+
+      <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
+        <button onClick={doPreview} disabled={loading}>
+          Preview files
+        </button>
+        <button onClick={doDownload} disabled={loading}>
+          Generate & Download ZIP
+        </button>
+        {!session && (
+          <button onClick={() => signIn()}>
+            Sign in to generate
+          </button>
         )}
       </div>
 
-      <section style={{ marginTop: 20 }}>
-        <h2>Pricing</h2>
-        <div style={{ display: "flex", gap: 12 }}>
-          <div style={{ border: "1px solid #ddd", padding: 12 }}>
-            <h3>$10 / month</h3>
-            <p>Pro features: infinite chat, 100 extra generation credits</p>
-            <button disabled={!session || loading} onClick={() => goCheckout("monthly")}>
-              Buy Monthly
-            </button>
-          </div>
+      {loading && <p style={{ color: "#666" }}>Generating…</p>}
 
-          <div style={{ border: "1px solid #ddd", padding: 12 }}>
-            <h3>$100 / year</h3>
-            <p>Pro features: infinite chat, 100 extra generation credits</p>
-            <button disabled={!session || loading} onClick={() => goCheckout("yearly")}>
-              Buy Yearly
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 20 }}>
-        <h2>Generate (gated)</h2>
-        <button onClick={generate} disabled={loading}>
-          Use generation endpoint (consumes credits / or allowed by Pro)
-        </button>
-      </section>
-
-      <p style={{ marginTop: 20, color: "#666" }}>
-        Note: nood2proinbloxfruit@gmail.com will be seeded as lifetime Pro when you run the seed script.
-      </p>
+      {previewFiles && (
+        <section style={{ marginTop: 16 }}>
+          <h2>Preview</h2>
+          <ul>
+            {previewFiles.map((f, i) => (
+              <li key={i} style={{ marginBottom: 12 }}>
+                <strong>{f.path}</strong>
+                <pre style={{ background: "#f6f6f8", padding: 8, whiteSpace: "pre-wrap" }}>{f.content}</pre>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
