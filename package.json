@@ -1,15 +1,28 @@
 {
-  "name": "ai-website-starter",
+  "name": "minecraft-ai-pro",
   "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:generate": "prisma generate",
+    "seed": "ts-node --esm prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "axios": "^1.4.0",
+    "jszip": "^4.0.0",
     "next": "13.4.10",
+    "next-auth": "^4.22.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "isomorphic-fetch": "^3.0.0"
+    "stripe": "^12.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   }
 }
