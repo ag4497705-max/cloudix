@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  name               String?
+  image              String?
+  emailVerified      DateTime?
+  stripeCustomerId   String? 
+  isPro              Boolean       @default(false)    // true while subscription active or lifetime
+  isLifetime         Boolean       @default(false)    // specially granted lifetime access
+  credits            Int           @default(0)        // for "100 more generate things"
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id])
+  stripeSubscriptionId  String   @unique
+  priceId               String
+  status                String
+  currentPeriodEnd      DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
