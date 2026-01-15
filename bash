@@ -1,3 +1,3 @@
-git add .
-git commit -m "vercel deploy"
-git push origin main
+npx prisma generate
+npx prisma migrate deploy
+npx ts-node prisma/seed.ts
