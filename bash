@@ -1,3 +1,3 @@
 git add .
-git commit -m "railway deploy"
+git commit -m "vercel deploy"
 git push origin main
